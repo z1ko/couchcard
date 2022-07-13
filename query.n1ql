@@ -1,0 +1,41 @@
+
+1) Trova il numero di accessi in un determinato mese a tutti i POI
+
+query:
+    
+    SELECT s.swipe_date AS date, s.poi_name AS poi, count(*) as swipes 
+    FROM VC.data.swipes AS s
+    WHERE s.swipe_date BETWEEN "2019-01-01" AND "2019-01-30"
+    GROUP BY s.swipe_date, s.poi_name
+    ORDER BY s.swipe_date;
+
+index:
+
+    CREATE INDEX idx_swipe_date_poi_name ON VC.data.swipes(swipe_date, poi_name);
+
+Tempo di esecuzione con indice primario: 11s
+Tempo di esecuzione con indice secondario apposito: 43ms
+Speedup: 256x
+
+
+2) Trova in un determinato giorno i POI con il massimo e minimo numero di accessi
+
+
+query:
+
+    SELECT 
+        s1.swipe_date AS date, 
+        s1.poi_name AS poi_1, 
+        s2.poi_name AS poi_2,
+        COUNT(s1.card_id) AS card_1_cnt,
+        COUNT(s2.card_id) AS card_2_cnt
+    FROM VC.data.swipes s1 JOIN VC.data.swipes s2 
+        ON s1.swipe_date = s2.swipe_date AND s1.poi_name <> s2.poi_name
+    WHERE s1.swipe_date BETWEEN "2019-01-01" AND "2019-01-02"
+    GROUP BY s1.swipe_date, s1.poi_name, s2.poi_name;
+
+    SELECT ARRAY_MAX(g.cnt) as max_cnt FROM (
+  SELECT s.poi_name, count(s.card_id) as cnt FROM VC.data.swipes s
+  WHERE s.swipe_date BETWEEN "2019-01-01" AND "2019-02-01"
+  GROUP BY s.poi_name) AS g
+ LIMIT 2;
