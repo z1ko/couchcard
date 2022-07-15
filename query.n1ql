@@ -1,4 +1,5 @@
 
+===========================================================================================================
 1) Trova il numero di accessi in un determinato mese a tutti i POI
 
 query:
@@ -18,24 +19,105 @@ Tempo di esecuzione con indice secondario apposito: 43ms
 Speedup: 256x
 
 
+===========================================================================================================
 2) Trova in un determinato giorno i POI con il massimo e minimo numero di accessi
 
+Ottiene tutti i POI con numero massimo/minimo (usa MAX o MIN) di accessi in un determinato giorno
+subquery:
+    
+    SELECT a.poi_name, a.daily_swipes
+    FROM (
+        SELECT poi_name, count(*) as daily_swipes FROM Couchcard.data.swipes
+        WHERE swipe_date BETWEEN "2017-09-01" AND "2017-09-02"
+        GROUP BY poi_name
+    ) AS a
+    WHERE a.daily_swipes WITHIN (
+        SELECT MAX(s.daily_swipes) FROM (
+            SELECT count(*) as daily_swipes FROM Couchcard.data.swipes
+            WHERE swipe_date BETWEEN "2017-09-01" AND "2017-09-02"
+            GROUP BY poi_name
+        ) AS s
+    )
 
 query:
 
-    SELECT 
-        s1.swipe_date AS date, 
-        s1.poi_name AS poi_1, 
-        s2.poi_name AS poi_2,
-        COUNT(s1.card_id) AS card_1_cnt,
-        COUNT(s2.card_id) AS card_2_cnt
-    FROM VC.data.swipes s1 JOIN VC.data.swipes s2 
-        ON s1.swipe_date = s2.swipe_date AND s1.poi_name <> s2.poi_name
-    WHERE s1.swipe_date BETWEEN "2019-01-01" AND "2019-01-02"
-    GROUP BY s1.swipe_date, s1.poi_name, s2.poi_name;
+    SELECT maxi.poi_name AS max_poi, maxi.daily_swipes AS max_swipes, mini.poi_name AS min_poi, mini.daily_swipes AS min_swipes
+    FROM (
+        SELECT a.poi_name, a.daily_swipes
+        FROM (
+            SELECT poi_name, count(*) as daily_swipes FROM Couchcard.data.swipes
+            WHERE swipe_date BETWEEN "2017-09-01" AND "2017-09-02"
+            GROUP BY poi_name
+        ) AS a
+        WHERE a.daily_swipes WITHIN (
+            SELECT MAX(s.daily_swipes) FROM (
+                SELECT count(*) as daily_swipes FROM Couchcard.data.swipes
+                WHERE swipe_date BETWEEN "2017-09-01" AND "2017-09-02"
+                GROUP BY poi_name
+            ) AS s
+        )
+    ) AS maxi, (
+        SELECT b.poi_name, b.daily_swipes
+        FROM (
+            SELECT poi_name, count(*) as daily_swipes FROM Couchcard.data.swipes
+            WHERE swipe_date BETWEEN "2017-09-01" AND "2017-09-02"
+            GROUP BY poi_name
+        ) AS b
+        WHERE b.daily_swipes WITHIN (
+            SELECT MIN(s.daily_swipes) FROM (
+                SELECT count(*) as daily_swipes FROM Couchcard.data.swipes
+                WHERE swipe_date BETWEEN "2017-09-01" AND "2017-09-02"
+                GROUP BY poi_name
+            ) AS s
+        )
+    ) AS mini
 
-    SELECT ARRAY_MAX(g.cnt) as max_cnt FROM (
-  SELECT s.poi_name, count(s.card_id) as cnt FROM VC.data.swipes s
-  WHERE s.swipe_date BETWEEN "2019-01-01" AND "2019-02-01"
-  GROUP BY s.poi_name) AS g
- LIMIT 2;
+Tempo di esecuzione con indice secondario: 20ms
+
+NB: Il giorno "2017-09-01" è un ottimo candidato per dimostrare come ci possono essere più POI allo stesso numero di accessi!
+
+PREPARE BestWorstPOIDaily AS
+SELECT maxi.poi_name AS max_poi, maxi.daily_swipes AS max_swipes, mini.poi_name AS min_poi, mini.daily_swipes AS min_swipes
+FROM (
+    SELECT a.poi_name, a.daily_swipes
+    FROM (
+        SELECT poi_name, count(*) as daily_swipes FROM Couchcard.data.swipes
+        WHERE swipe_date BETWEEN $date AND DATE_ADD_STR($date, 1, "day")
+        GROUP BY poi_name
+    ) AS a
+    WHERE a.daily_swipes WITHIN (
+        SELECT MAX(s.daily_swipes) FROM (
+            SELECT count(*) as daily_swipes FROM Couchcard.data.swipes
+            WHERE swipe_date BETWEEN $date AND DATE_ADD_STR($date, 1, "day")
+            GROUP BY poi_name
+        ) AS s
+    )
+) AS maxi, (
+    SELECT b.poi_name, b.daily_swipes
+    FROM (
+        SELECT poi_name, count(*) as daily_swipes FROM Couchcard.data.swipes
+        WHERE swipe_date BETWEEN $date AND DATE_ADD_STR($date, 1, "day")
+        GROUP BY poi_name
+    ) AS b
+    WHERE b.daily_swipes WITHIN (
+        SELECT MIN(s.daily_swipes) FROM (
+            SELECT count(*) as daily_swipes FROM Couchcard.data.swipes
+            WHERE swipe_date BETWEEN $date AND DATE_ADD_STR($date, 1, "day")
+            GROUP BY poi_name
+        ) AS s
+    )
+) AS mini
+
+EXECUTE BestWorstPOIDaily USING { "date": "2017-09-01" };
+
+===========================================================================================================
+3) Dato un tipo (profilo) di VC, trovare tutte gli id delle VC del profilo con almeno 3 swipes in un singolo
+giorno, riportandole tutte e 3
+
+
+Trova tutte le coppie (card, date) che soddisfano il filtro di ricerca
+    SELECT card_id, swipe_date AS date, count(*) as date_swipes
+    FROM Couchcard.data.swipes
+    WHERE card_type = "vrcard2-24"
+    GROUP BY card_id, swipe_date
+    HAVING count(*) > 3;
