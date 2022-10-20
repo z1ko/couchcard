@@ -8,21 +8,21 @@ networks:
 
 services:
   
-  balthasar:
-    image: couchbase/server
-    volumes:
-      - ./nodes/node1:/opt/couchbase/var
-    networks:
-      appnet:
-        ipv4_address: "172.24.2.3"
+  #balthasar:
+  #  image: couchbase/server
+  #  volumes:
+  #    - ./nodes/node1:/opt/couchbase/var
+  #  networks:
+  #    appnet:
+  #      ipv4_address: "172.24.2.3"
 
-  melchior:
-    image: couchbase/server
-    volumes:
-      - ./nodes/node2:/opt/couchbase/var
-    networks:
-      appnet:
-        ipv4_address: "172.24.2.2"
+  #melchior:
+  #  image: couchbase/server
+  #  volumes:
+  #    - ./nodes/node2:/opt/couchbase/var
+  #  networks:
+  #    appnet:
+  #      ipv4_address: "172.24.2.2"
 
 
   # Nodo principale con l'interfaccia grafica
@@ -34,4 +34,5 @@ services:
       appnet:
         ipv4_address: "172.24.2.1"
     ports:
-      - 3777:8091
+      - 8091-8097:8091-8097
+      - 11210:11210

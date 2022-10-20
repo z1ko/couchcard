@@ -14,18 +14,15 @@ Le swipes vengono suddivise per giorno e per poi.
 
 ```
 -- Collection: Couchcard.data.pois
-INSERT INTO Couchcard.data.pois (KEY poi_name)
+UPSERT INTO Couchcard.data.pois (KEY poi_name)
 SELECT poi_name, ARRAY_AGG(DISTINCT poi_device) AS devices
 FROM Couchcard.data.swipes
 GROUP BY poi_name;
 ```
 
-Questa trasformazione richiede un indice primario per la chiave della collezione pois, creato in questo modo: 
-
-
 ```
 -- Collection: Couchcard.data.days
-INSERT INTO Couchcard.data.days (KEY day)
+UPSERT INTO Couchcard.data.days (KEY day)
 SELECT G.swipe_date AS day, ARRAY_AGG({G.poi, G.swipes}) as pois
 FROM (
     SELECT S.swipe_date, S.poi_name AS poi, ARRAY_AGG({ S.swipe_time, S.card_id, S.poi_device }) as swipes
@@ -43,17 +40,15 @@ Le swipes vengono suddivise per VeronaCard ID.
 
 ```
 -- Collection: Couchcard.data.cards
-UPSERT INTO Couchcard.data.cards (KEY card)
-SELECT S.card_id AS card, S.card_activation AS activation, S.card_type AS type, 
-       ARRAY_AGG({ S.poi_name, S.swipe_time, S.swipe_date, S.poi_device }) AS swipes
-FROM Couchcard.data.swipes S
-WHERE S.card_id IS NOT NULL
-GROUP BY S.card_id, S.card_activation, S.card_type;
+UPSERT INTO couchcard.data.cards (KEY id)
+SELECT G.card_type AS type, G.card_id AS id, ARRAY_AGG({G.date, G.swipes, G.swipes_count}) AS dates
+FROM (
+    SELECT S.card_type, S.card_id, S.swipe_date AS date, ARRAY_AGG({ S.swipe_time, S.poi_name, S.poi_device}) AS swipes, COUNT(S.swipe_time) AS swipes_count
+    FROM couchcard.data.swipes S
+    GROUP BY S.card_type, S.card_id, S.swipe_date
+) AS G
+GROUP BY G.card_type, G.card_id;
 ```
-
-INSERT INTO Couchcard.data.types (KEY type)
-SELECT S.type AS type, ARRAY_AGG({S.card_id, S.swipe_date}) AS ids
-FROM Couchcard.data.swipes AS S;
 
 # Interrogazioni
 
@@ -114,9 +109,18 @@ FROM (
 Dato un profilo VC, trovare i codici delle VC di quel profilo con almeno 3 strisciate in un giorno, riportandole tutte e 3
 
 ```
-SELECT META(C).id AS card, S.swipe_date, ARRAY_AGG({ S.poi_device, S.poi_name, S.swipe_time }) AS swipes, COUNT(*) AS swipe_count
-FROM Couchcard.data.cards C UNNEST C.swipes S
-WHERE C.type = "vrcard-24-2019"
-GROUP BY META(C).id, S.swipe_date
-HAVING COUNT(*) > 3;
+SELECT C.id, D.date, ARRAY_AGG({S.swipe_time, S.poi_name, S.poi_device}) AS swipes
+FROM couchcard.data.cards C UNNEST C.dates D UNNEST D.swipes S
+WHERE D.swipes_count >= 3
+GROUP BY C.id, D.date;
+```
+
+viene usato il seguente indice sugli array per velocizzare l'accesso
+
+```
+CREATE INDEX sidx_cards_swipes ON couchcard.data.cards (
+    ALL ARRAY (
+        ALL ARRAY D.swipes_count FOR S IN D.swipes END
+    ) FOR D IN dates END
+);
 ```
