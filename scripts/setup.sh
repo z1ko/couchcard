@@ -1,0 +1,42 @@
+#!/bin/bash
+
+# Remove old bucket if present
+
+#curl -v -X DELETE -u admin:password \
+#  http://127.0.0.1:8091/pools/default/buckets/Couchcard
+
+# Create a new bucket on the cluster
+
+curl -v -X POST http://127.0.0.1:8091/pools/default/buckets \
+  -u admin:password \
+  -d name=Couchcard \
+  -d bucketType=couchbase \
+  -d ramQuota=512
+
+# Create the data and import scopes
+
+curl -v -X POST http://127.0.0.1:8091/pools/default/buckets/Couchcard/scopes \
+  -u admin:password \
+  -d name=import
+
+curl -v -X POST http://127.0.0.1:8091/pools/default/buckets/Couchcard/scopes \
+  -u admin:password \
+  -d name=data
+
+# Create the collections
+
+curl -v -X POST http://127.0.0.1:8091/pools/default/buckets/Couchcard/scopes/import/collections \
+  -u admin:password \
+  -d name=swipes
+
+curl -v -X POST http://127.0.0.1:8091/pools/default/buckets/Couchcard/scopes/data/collections \
+  -u admin:password \
+  -d name=pois
+
+curl -v -X POST http://127.0.0.1:8091/pools/default/buckets/Couchcard/scopes/data/collections \
+  -u admin:password \
+  -d name=cards
+
+curl -v -X POST http://127.0.0.1:8091/pools/default/buckets/Couchcard/scopes/data/collections \
+  -u admin:password \
+  -d name=days

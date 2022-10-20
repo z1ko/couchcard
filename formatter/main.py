@@ -19,10 +19,12 @@ columns = [
     "card_type"
 ]
 
+
 # Converte la data e la ritorna YYYY-MM-DD
 def iso8601(date):
     parts = date.split('-')
     return f"20{parts[2]}-{parts[1]}-{parts[0]}"
+
 
 if __name__ == '__main__':
 

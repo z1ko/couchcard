@@ -1,19 +1,30 @@
 # Generazione collezioni
 
-I dati vengono caricati direttamente da csv nella collezione Couchcard.data.swipes, da qui vengono processati e inseriti nelle due collezioni 'days' e 'cards' che mantengono gli stessi dati con pattern di accesso specializzati per le query date.
+I dati vengono caricati direttamente da csv nella collezione 'swipes', da qui vengono processati e inseriti nelle due collezioni 'days' e 'cards' che mantengono gli stessi dati con pattern di accesso specializzati per le query date.
+
+Queste trasformazioni iniziali richiedono un indice primario per le 'swipes', creato in questo modo:
+
+```
+CREATE PRIMARY INDEX idx_swipes ON Couchcard.data.swipes;
+```
 
 ## Days
 
 Le swipes vengono suddivise per giorno e per poi.
 
 ```
+-- Collection: Couchcard.data.pois
 INSERT INTO Couchcard.data.pois (KEY poi_name)
 SELECT poi_name, ARRAY_AGG(DISTINCT poi_device) AS devices
 FROM Couchcard.data.swipes
 GROUP BY poi_name;
 ```
 
+Questa trasformazione richiede un indice primario per la chiave della collezione pois, creato in questo modo: 
+
+
 ```
+-- Collection: Couchcard.data.days
 INSERT INTO Couchcard.data.days (KEY day)
 SELECT G.swipe_date AS day, ARRAY_AGG({G.poi, G.swipes}) as pois
 FROM (
@@ -31,6 +42,7 @@ ORDER BY G.swipe_date;
 Le swipes vengono suddivise per VeronaCard ID.
 
 ```
+-- Collection: Couchcard.data.cards
 UPSERT INTO Couchcard.data.cards (KEY card)
 SELECT S.card_id AS card, S.card_activation AS activation, S.card_type AS type, 
        ARRAY_AGG({ S.poi_name, S.swipe_time, S.swipe_date, S.poi_device }) AS swipes
@@ -38,6 +50,10 @@ FROM Couchcard.data.swipes S
 WHERE S.card_id IS NOT NULL
 GROUP BY S.card_id, S.card_activation, S.card_type;
 ```
+
+INSERT INTO Couchcard.data.types (KEY type)
+SELECT S.type AS type, ARRAY_AGG({S.card_id, S.swipe_date}) AS ids
+FROM Couchcard.data.swipes AS S;
 
 # Interrogazioni
 

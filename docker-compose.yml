@@ -11,7 +11,7 @@ services:
   balthasar:
     image: couchbase/server
     volumes:
-      - ./couchbase/node1:/opt/couchbase/var
+      - ./nodes/node1:/opt/couchbase/var
     networks:
       appnet:
         ipv4_address: "172.24.2.3"
@@ -19,7 +19,7 @@ services:
   melchior:
     image: couchbase/server
     volumes:
-      - ./couchbase/node2:/opt/couchbase/var
+      - ./nodes/node2:/opt/couchbase/var
     networks:
       appnet:
         ipv4_address: "172.24.2.2"
@@ -29,12 +29,9 @@ services:
   casper:
     image: couchbase/server
     volumes:
-      - ./couchbase/node3:/opt/couchbase/var
+      - ./nodes/node3:/opt/couchbase/var
     networks:
       appnet:
         ipv4_address: "172.24.2.1"
     ports:
-      - 8091:8091 
-      - 8092:8092 
-      - 8093:8093 
-      - 11210:11210
+      - 3777:8091
