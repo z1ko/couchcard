@@ -5,7 +5,7 @@ I dati vengono caricati direttamente da csv nella collezione 'swipes', da qui ve
 Queste trasformazioni iniziali richiedono un indice primario per le 'swipes', creato in questo modo:
 
 ```
-CREATE PRIMARY INDEX idx_swipes ON Couchcard.data.swipes;
+    CREATE PRIMARY INDEX idx_swipes ON Couchcard.data.swipes;
 ```
 
 ## Days
@@ -19,6 +19,7 @@ SELECT poi_name, ARRAY_AGG(DISTINCT poi_device) AS devices
 FROM Couchcard.data.swipes
 GROUP BY poi_name;
 ```
+Tempo esecuzione: 1m 29s
 
 ```
 -- Collection: Couchcard.data.days
@@ -33,6 +34,7 @@ FROM (
 GROUP BY G.swipe_date
 ORDER BY G.swipe_date;
 ```
+Tempo esecuzione: 
 
 ## Cards
 
@@ -40,15 +42,17 @@ Le swipes vengono suddivise per VeronaCard ID.
 
 ```
 -- Collection: Couchcard.data.cards
-UPSERT INTO couchcard.data.cards (KEY id)
+UPSERT INTO Couchcard.data.cards (KEY id)
 SELECT G.card_type AS type, G.card_id AS id, ARRAY_AGG({G.date, G.swipes, G.swipes_count}) AS dates
 FROM (
     SELECT S.card_type, S.card_id, S.swipe_date AS date, ARRAY_AGG({ S.swipe_time, S.poi_name, S.poi_device}) AS swipes, COUNT(S.swipe_time) AS swipes_count
-    FROM couchcard.data.swipes S
+    FROM Couchcard.data.swipes S
     GROUP BY S.card_type, S.card_id, S.swipe_date
 ) AS G
 GROUP BY G.card_type, G.card_id;
 ```
+
+Tutte le query precedenti funzionano, 9 gen 2023, 17:08
 
 # Interrogazioni
 
@@ -73,7 +77,7 @@ FROM (
 ON AP.poi = CNT.poi AND AP.day = CNT.day;
 ```
 
-In un giorno del mese trovare POI con numero massimo e minimo di accessi
+In un giorno del mese trovare POI con numero massimo e minimo di accessi (funziona ed è velocissima)
 
 ```
 -- Ottiene un ordinamento di tutti gli insiemi di POIs con lo stesso numero di accessi un giorno
@@ -106,13 +110,13 @@ FROM (
 ) AS MINIM;
 ```
 
-Dato un profilo VC, trovare i codici delle VC di quel profilo con almeno 3 strisciate in un giorno, riportandole tutte e 3
+Dato un profilo VC, trovare i codici delle VC di quel profilo con almeno 3 strisciate in un giorno, riportandole tutte e 3 (funziona ed è velocissima)
 
 ```
-SELECT C.id, D.date, ARRAY_AGG({S.swipe_time, S.poi_name, S.poi_device}) AS swipes
-FROM couchcard.data.cards C UNNEST C.dates D UNNEST D.swipes S
+SELECT C.id, D.date, D.swipes AS swipes
+FROM Couchcard.data.cards C UNNEST C.dates D
 WHERE D.swipes_count >= 3 AND C.type = "vrcard2-24"
-GROUP BY C.id, D.date;
+LIMIT 100;
 ```
 
 viene usato il seguente indice sugli array per velocizzare l'accesso
