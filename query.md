@@ -111,7 +111,7 @@ Dato un profilo VC, trovare i codici delle VC di quel profilo con almeno 3 stris
 ```
 SELECT C.id, D.date, ARRAY_AGG({S.swipe_time, S.poi_name, S.poi_device}) AS swipes
 FROM couchcard.data.cards C UNNEST C.dates D UNNEST D.swipes S
-WHERE D.swipes_count >= 3
+WHERE D.swipes_count >= 3 AND C.type = "vrcard2-24"
 GROUP BY C.id, D.date;
 ```
 
